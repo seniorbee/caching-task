@@ -87,6 +87,11 @@ async def test_transformation_cache_is_reused(session):
     foo = await dao.get("foo")
     bar = await dao.get("bar")
 
+    assert hello is not None
+    assert world is not None
+    assert foo is not None
+    assert bar is not None
+
     assert hello.output == "HELLO"
     assert world.output == "WORLD"
     assert foo.output == "FOO"
