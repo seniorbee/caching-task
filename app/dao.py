@@ -20,7 +20,6 @@ class TransformationCacheDAO:
         self.session.add(
             TransformationCache(input=input, output=output)
         )
-        await self.session.commit()
 
 
 class PayloadCacheDAO:
@@ -39,4 +38,3 @@ class PayloadCacheDAO:
         self.session.add(
             PayloadCache(hash=hash, output=output)
         )
-        await self.session.commit()
