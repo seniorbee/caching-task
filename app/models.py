@@ -16,7 +16,7 @@ class PayloadRequest(BaseModel):
 
 
 class PayloadResponse(BaseModel):
-    id: int
+    id: str
 
 
 class PayloadOutput(BaseModel):

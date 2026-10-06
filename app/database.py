@@ -1,17 +1,29 @@
-from sqlmodel import Session, SQLModel, create_engine
+from collections.abc import AsyncGenerator
 
-DATABASE_URL = "sqlite:///./cache.db"
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
+from app.tables import Base
+
+DATABASE_URL = "sqlite+aiosqlite:///./cache.db"
+
+engine = create_async_engine(DATABASE_URL)
+
+session_maker = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
 
 
-def get_session():
-    with Session(engine) as session:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with session_maker() as session:
         yield session
 
 
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+async def create_tables() -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)

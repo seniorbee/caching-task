@@ -1,11 +1,16 @@
-from sqlmodel import Field, SQLModel
+from sqlalchemy import String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-class TransformationCache(SQLModel, table=True):
-    input: str = Field(primary_key=True)
-    output: str
+class Base(DeclarativeBase):
+    pass
 
 
-class PayloadCache(SQLModel, table=True):
-    hash: str = Field(primary_key=True)
-    output: str
+class TransformationCache(Base):
+    input: Mapped[str] = mapped_column(String, primary_key=True)
+    output: Mapped[str] = mapped_column(String)
+
+
+class PayloadCache(Base):
+    hash: Mapped[str] = mapped_column(String, primary_key=True)
+    output: Mapped[str] = mapped_column(String)
