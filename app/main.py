@@ -13,6 +13,12 @@ from app.dao import PayloadCacheDAO
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Initialize persistent storage before accepting requests.
+
+    Tables are created at application startup rather than per request so
+    database initialization is performed once during the application
+    lifecycle.
+    """
     await create_tables()
     yield
 
