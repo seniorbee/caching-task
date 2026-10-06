@@ -4,10 +4,8 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
-from pydantic import AnyHttpUrl, Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from app.models import PayloadRequest, PayloadResponse
 
 
 class CLISettings(BaseSettings):
@@ -18,78 +16,96 @@ class CLISettings(BaseSettings):
     )
 
     host: Annotated[
-        AnyHttpUrl,
+        str,
         Field(description="URL of the cache server"),
-    ] = AnyHttpUrl("http://localhost:8000")
+    ] = "http://localhost:8000"
 
     repeat: Annotated[
         int,
-        Field(
-            ge=1,
-            description="Number of iterations",
-        ),
+        Field(ge=1, description="Number of iterations"),
     ] = 1
 
     input: Annotated[
         str | None,
-        Field(
-            description='Input file, or "-" for stdin',
-        ),
+        Field(description='Input file, or "-" for stdin'),
     ] = None
 
-    json: Annotated[
+    json_input: Annotated[
         str | None,
         Field(
             description="Input JSON",
+            validation_alias=AliasChoices("json", "json_input"),
         ),
     ] = None
 
     output: Annotated[
         str,
-        Field(
-            description='Output file, or "-" for stdout',
-        ),
+        Field(description='Output file, or "-" for stdout'),
     ] = "-"
 
     @model_validator(mode="after")
-    def validate_input(self) -> "CLISettings":
-        if self.input is not None and self.json is not None:
+    def validate_settings(self) -> "CLISettings":
+        if self.input is not None and self.json_input is not None:
             raise ValueError("--input and --json cannot be used together")
 
-        if self.input is None and self.json is None:
+        if self.input is None and self.json_input is None:
             raise ValueError("one of --input or --json is required")
+
+        if not self.host.startswith(("http://", "https://")):
+            raise ValueError(
+                "--host must be a valid HTTP or HTTPS URL"
+            )
 
         return self
 
 
-def check_host_short_option() -> None:
-    """Handle the assignment's -h/--host vs -h/--help conflict."""
+def normalize_short_options() -> None:
     arguments = sys.argv[1:]
+    normalized = []
 
-    if "-h" not in arguments:
-        return
+    short_options = {
+        "-r": "--repeat",
+        "-i": "--input",
+        "-j": "--json",
+        "-o": "--output",
+    }
 
-    index = arguments.index("-h")
+    index = 0
 
-    if index + 1 >= len(arguments):
-        return
+    while index < len(arguments):
+        argument = arguments[index]
 
-    next_argument = arguments[index + 1]
+        if argument == "-h":
+            if index + 1 < len(arguments):
+                next_argument = arguments[index + 1]
 
-    if not next_argument.startswith("-"):
-        print(
-            "error: argument -h: did you mean '--host'?",
-            file=sys.stderr,
-        )
-        raise SystemExit(2)
+                if not next_argument.startswith("-"):
+                    print(
+                        "error: argument -h: did you mean '--host'?",
+                        file=sys.stderr,
+                    )
+                    raise SystemExit(2)
+
+            normalized.append(argument)
+            index += 1
+            continue
+
+        if argument in short_options:
+            normalized.append(short_options[argument])
+        else:
+            normalized.append(argument)
+
+        index += 1
+
+    sys.argv[1:] = normalized
 
 
 def read_input(settings: CLISettings) -> str:
-    if settings.json is not None:
-        return settings.json
+    if settings.json_input is not None:
+        return settings.json_input
 
     if settings.input is None:
-        raise ValueError("one of --input or --json is required")
+        raise ValueError("input is required")
 
     if settings.input == "-":
         return sys.stdin.read()
@@ -106,31 +122,28 @@ def write_output(settings: CLISettings, content: str) -> None:
 
 
 def main() -> None:
-    check_host_short_option()
+    normalize_short_options()
 
     settings = CLISettings()
 
     input_data = read_input(settings)
-    payload = PayloadRequest.model_validate_json(input_data)
-
-    results: list[dict[str, str]] = []
+    payload = json.loads(input_data)
 
     with httpx.Client() as client:
+        results = []
+
         for _ in range(settings.repeat):
             response = client.post(
-                f"{str(settings.host).rstrip('/')}/payload",
-                json=payload.model_dump(),
+                f"{settings.host.rstrip('/')}/payload",
+                json=payload,
             )
             response.raise_for_status()
+            results.append(response.json())
 
-            result = PayloadResponse.model_validate(
-                response.json()
-            )
-
-            results.append(result.model_dump())
-
-    output = json.dumps(results, indent=2) + "\n"
-    write_output(settings, output)
+    write_output(
+        settings,
+        json.dumps(results, indent=2) + "\n",
+    )
 
 
 if __name__ == "__main__":

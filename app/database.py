@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -8,7 +9,10 @@ from sqlalchemy.ext.asyncio import (
 
 from app.tables import Base
 
-DATABASE_URL = "sqlite+aiosqlite:///./cache.db"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite+aiosqlite:///./cache.db",
+)
 
 engine = create_async_engine(DATABASE_URL)
 

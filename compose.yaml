@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - cache_data:/app/data
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////app/data/cache.db
+    restart: unless-stopped
+
+volumes:
+  cache_data:

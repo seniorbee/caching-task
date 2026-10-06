@@ -2,3 +2,4 @@
 *.pyc
 .vscode
 cache.db
+.pytest_cache
