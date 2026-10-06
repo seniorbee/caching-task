@@ -12,7 +12,7 @@ def get_payload_hash(list_1: list[str], list_2: list[str]) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
 
 
-async def get_or_create_transformation(value, dao):
+async def get_or_create_transformation(value: str, dao: TransformationCacheDAO):
     cached = await dao.get(value)
     if cached:
         return cached.output
@@ -42,10 +42,10 @@ async def create_payload(
     transformed_2 = []
 
     for value in list_1:
-        transformed_1.append(get_or_create_transformation(value=value, dao=transformation_dao))
+        transformed_1.append(await get_or_create_transformation(value=value, dao=transformation_dao))
 
     for value in list_2:
-        transformed_2.append(get_or_create_transformation(value=value, dao=transformation_dao))
+        transformed_2.append(await get_or_create_transformation(value=value, dao=transformation_dao))
 
     output = ", ".join(
         value
