@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from fastapi import HTTPException
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import create_tables, get_session
-from app.models import PayloadRequest, PayloadResponse
+from app.models import PayloadRequest, PayloadResponse, PayloadOutput
 from app.service import create_payload
+from app.dao import PayloadCacheDAO
 
 
 @asynccontextmanager
@@ -29,3 +32,17 @@ async def create_payload_endpoint(
     )
 
     return PayloadResponse(id=payload_id)
+
+
+@app.get("/payload/{id}", response_model=PayloadOutput)
+async def get_payload(
+    id: str,
+    session: AsyncSession = Depends(get_session),
+) -> PayloadOutput:
+    dao = PayloadCacheDAO(session)
+    payload = await dao.get(id)
+
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Payload not found")
+
+    return PayloadOutput(output=payload.output)
